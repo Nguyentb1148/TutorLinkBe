@@ -6,17 +6,14 @@ using TutorLinkBe.Models;
 namespace TutorLinkBe.Services;
 
 // Provides access to MongoDB and exposes a connectivity check
-public sealed class MongoDbServices
+public sealed class MongoDbService
 {
-    private readonly ILogger<MongoDbServices> _logger;
+    private readonly ILogger<MongoDbService> _logger;
     private readonly MongoClient _client;
     private readonly IMongoDatabase? _database;
     
     // Initializes a new instance of the <see cref="MongoDbService"/> class.
-    // param "options": application settings options.
-    // param "logger" :logger instance.
-
-    public MongoDbServices(IOptions<AppSettings> options, ILogger<MongoDbServices> logger)
+    public MongoDbService(IOptions<AppSettings> options, ILogger<MongoDbService> logger)
     {
         _logger = logger;
 
@@ -34,7 +31,7 @@ public sealed class MongoDbServices
         try
         {
             var mongoUrl = MongoUrl.Create(connectionString);
-            var databaseName = string.IsNullOrWhiteSpace(mongoUrl.DatabaseName) ? "TutorLink" : mongoUrl.DatabaseName;
+            var databaseName = string.IsNullOrWhiteSpace(mongoUrl.DatabaseName) ? "tutorlink" : mongoUrl.DatabaseName;
             _database = _client.GetDatabase(databaseName);
         }
         catch (Exception ex)
@@ -65,7 +62,7 @@ public sealed class MongoDbServices
     {
         get
         {
-            if(_database is null) throw new InvalidOperationException("MongoDb is not configured.");
+            if (_database is null) throw new InvalidOperationException("Mongo database is not configured.");
             return _database.GetCollection<TestItem>("TestItems");
         }
     }

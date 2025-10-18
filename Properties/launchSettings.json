@@ -15,6 +15,7 @@
       "launchBrowser": true,
       "launchUrl": "swagger",
       "applicationUrl": "http://localhost:5038",
+      "useTunnel": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
