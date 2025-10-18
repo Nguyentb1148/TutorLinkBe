@@ -1,0 +1,72 @@
+using Microsoft.Extensions.Options;
+using MongoDB.Driver;
+using TutorLinkBe.Config;
+using TutorLinkBe.Models;
+
+namespace TutorLinkBe.Services;
+
+// Provides access to MongoDB and exposes a connectivity check
+public sealed class MongoDbServices
+{
+    private readonly ILogger<MongoDbServices> _logger;
+    private readonly MongoClient _client;
+    private readonly IMongoDatabase? _database;
+    
+    // Initializes a new instance of the <see cref="MongoDbService"/> class.
+    // param "options": application settings options.
+    // param "logger" :logger instance.
+
+    public MongoDbServices(IOptions<AppSettings> options, ILogger<MongoDbServices> logger)
+    {
+        _logger = logger;
+
+        var settings = options.Value;
+        
+        var connectionString = settings.MongoDb?.ConnectionString;
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            _logger.LogWarning("MongoDb.ConnectionString is not configured in AppSettings.");
+            connectionString= string.Empty;
+        }
+        
+        _client = new MongoClient(connectionString);
+
+        try
+        {
+            var mongoUrl = MongoUrl.Create(connectionString);
+            var databaseName = string.IsNullOrWhiteSpace(mongoUrl.DatabaseName) ? "TutorLink" : mongoUrl.DatabaseName;
+            _database = _client.GetDatabase(databaseName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to parse MongoDB connection string for database selection.");
+        }
+        
+    }
+    
+    //check the MongoDb connection by attempting to list database
+    public async Task<bool> CheckConnectionAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var session = await _client.ListDatabaseNamesAsync(cancellationToken);
+            _ = await session.ToListAsync(cancellationToken);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,"Failed to connect to MongoDB or list databases.");
+            return false;
+        }
+    }
+    
+    //Exposes the TestItems collection in the configured database.
+    public IMongoCollection<TestItem> TestItems
+    {
+        get
+        {
+            if(_database is null) throw new InvalidOperationException("MongoDb is not configured.");
+            return _database.GetCollection<TestItem>("TestItems");
+        }
+    }
+}

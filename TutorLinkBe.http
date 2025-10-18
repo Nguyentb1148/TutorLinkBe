@@ -1,0 +1,6 @@
+@TutorLinkBe_HostAddress = http://localhost:5038
+
+GET {{TutorLinkBe_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
