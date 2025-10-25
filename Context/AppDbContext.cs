@@ -5,7 +5,7 @@ using TutorLinkBe.Models;
 
 namespace TutorLinkBe.Context;
 
-    public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
+    public class AppDbContext : IdentityDbContext<ApplicationUser>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options) { }
@@ -20,7 +20,7 @@ namespace TutorLinkBe.Context;
         public DbSet<QuizOption> QuizOptions { get; set; }
         public DbSet<QuizSubmission> QuizSubmissions { get; set; }
         public DbSet<QuizAnswer> QuizAnswers { get; set; }
-
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder); // Identity setup
@@ -122,5 +122,15 @@ namespace TutorLinkBe.Context;
                 .WithMany(u => u.ClassroomStudents)
                 .HasForeignKey(cs => cs.StudentId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure RefreshToken entity explicitly
+            modelBuilder.Entity<RefreshToken>(entity =>
+            {
+                entity.HasKey(rt => rt.Id);
+                entity.Property(rt => rt.Token).IsRequired();
+                entity.Property(rt => rt.UserId).IsRequired();
+                entity.HasIndex(rt => rt.Token);
+            });
+
         }
 }

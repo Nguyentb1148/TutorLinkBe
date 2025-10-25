@@ -4,7 +4,7 @@ public class LessonView
 {
     public Guid LessonViewId { get; set; }
     public Guid LessonId { get; set; }
-    public Guid StudentId { get; set; }
+    public string StudentId { get; set; }
 
     public DateTime ViewedAt { get; set; } = DateTime.UtcNow;
 

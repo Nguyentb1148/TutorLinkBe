@@ -4,7 +4,7 @@ public class ClassroomStudent
 {
     public Guid ClassroomStudentId { get; set; }
     public Guid ClassroomId { get; set; }
-    public Guid StudentId { get; set; }
+    public string StudentId { get; set; }
 
     public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
     public bool IsApproved { get; set; }
