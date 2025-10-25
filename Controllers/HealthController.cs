@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using TutorLinkBe.Context;
 using TutorLinkBe.Services;
 
 namespace TutorLinkBe.Controllers;
@@ -9,10 +11,12 @@ namespace TutorLinkBe.Controllers;
 public class HealthController : ControllerBase
 {
     private readonly MongoDbService _mongoDbService;
+    private readonly AppDbContext _dbContext;
 
-    public HealthController(MongoDbService mongoDbService)
+    public HealthController(MongoDbService mongoDbService, AppDbContext dbContext)
     {
         _mongoDbService = mongoDbService;
+        _dbContext = dbContext;
     }
     //returns overall health status and MongoDB connection state
     [HttpGet]
@@ -26,4 +30,19 @@ public class HealthController : ControllerBase
             mongoConnected
         });
     }
+    [HttpGet("db")]
+    public async Task<IActionResult> CheckDb()
+    {
+        try
+        {
+            await _dbContext.Database.OpenConnectionAsync();
+            await _dbContext.Database.CloseConnectionAsync();
+            return Ok(new { status = "Postgres OK" });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { status = "Postgres ERROR", error = ex.Message });
+        }
+    }
+
 }
