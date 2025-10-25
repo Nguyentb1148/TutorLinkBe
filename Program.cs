@@ -39,7 +39,7 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 builder.Services.AddScoped<IEmailService, EmailServices>();
 builder.Services.AddScoped<UserRepository>(); 
 builder.Services.AddScoped<TokenService>();
-builder.Configuration.AddJsonFile("appsettings.Development.json", optional: false, reloadOnChange: true)
+builder.Configuration.AddJsonFile("**/appsettings.Development.json", optional: false, reloadOnChange: true)
     .AddEnvironmentVariables();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
