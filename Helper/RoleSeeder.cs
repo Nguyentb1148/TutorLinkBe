@@ -1,12 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 
 namespace TutorLinkBe.Helper;
-
-public interface IRoleSeeder
-{
-    Task SeedRolesAsync();
-}
-
 public class RoleSeeder
 {
     public static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
