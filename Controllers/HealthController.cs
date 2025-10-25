@@ -10,26 +10,13 @@ namespace TutorLinkBe.Controllers;
 [Route("api/status")]
 public class HealthController : ControllerBase
 {
-    private readonly MongoDbService _mongoDbService;
     private readonly AppDbContext _dbContext;
 
-    public HealthController(MongoDbService mongoDbService, AppDbContext dbContext)
+    public HealthController( AppDbContext dbContext)
     {
-        _mongoDbService = mongoDbService;
         _dbContext = dbContext;
     }
-    //returns overall health status and MongoDB connection state
-    [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<object>> Get()
-    {
-        var mongoConnected = await _mongoDbService.CheckConnectionAsync(HttpContext.RequestAborted);
-        return Ok(new
-        {
-            statue = "OK",
-            mongoConnected
-        });
-    }
+    
     [HttpGet("db")]
     public async Task<IActionResult> CheckDb()
     {
