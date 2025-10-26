@@ -20,7 +20,6 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSettings"));
 builder.Services.AddSingleton<MongoDbService>();
-
 // builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresConnection")));
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("SupabaseConnection")));
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -85,11 +84,13 @@ using (var scope = app.Services.CreateScope())
 
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "TutorLink API v1");
+    c.RoutePrefix = string.Empty; // optional: open swagger at root URL
+});
+
 app.UseExceptionHandler(a => a.Run(async context => {
     var exception = context.Features.Get<IExceptionHandlerPathFeature>()?.Error;
     var logger = context.RequestServices.GetService<ILogger<Program>>();
