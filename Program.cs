@@ -88,7 +88,7 @@ app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "TutorLink API v1");
-    c.RoutePrefix = string.Empty; // optional: open swagger at root URL
+    c.RoutePrefix = "swagger";
 });
 
 app.UseExceptionHandler(a => a.Run(async context => {
@@ -102,7 +102,7 @@ app.UseCors("AllowAll");
 app.UseMiddleware<JwtMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 app.MapControllers();
 app.Run();
 
