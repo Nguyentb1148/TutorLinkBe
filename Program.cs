@@ -98,7 +98,7 @@ app.UseExceptionHandler(a => a.Run(async context => {
     await context.Response.WriteAsJsonAsync(new { error = "An unexpected error occurred." });
 }));
 app.UseCors("AllowAll");
-// app.UseMiddleware<JwtMiddleware>();
+app.UseMiddleware<JwtMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseHttpsRedirection();
