@@ -12,8 +12,8 @@ using TutorLinkBe.Context;
 namespace TutorLinkBe.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251021121900_AddRefreshTokensTable")]
-    partial class AddRefreshTokensTable
+    [Migration("20251026103637_initialDb")]
+    partial class initialDb
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
