@@ -57,13 +57,4 @@ public sealed class MongoDbService
         }
     }
     
-    //Exposes the TestItems collection in the configured database.
-    public IMongoCollection<TestItem> TestItems
-    {
-        get
-        {
-            if (_database is null) throw new InvalidOperationException("Mongo database is not configured.");
-            return _database.GetCollection<TestItem>("TestItems");
-        }
-    }
 }

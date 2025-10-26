@@ -6,9 +6,9 @@ namespace TutorLinkBe.Repository
 {
     public class UserRepository
     {
-         private readonly UserManager<ApplicationUser> _userManager;
-    private string _baseDir;
-    private readonly ILogger<UserRepository> _logger;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private string _baseDir;
+        private readonly ILogger<UserRepository> _logger;
 
     public UserRepository(UserManager<ApplicationUser> userManager,ILogger<UserRepository> logger)
     {
@@ -32,9 +32,9 @@ namespace TutorLinkBe.Repository
         return await CreateUserWithRoleAsync(model, "Admin");
     }
 
-    public async Task<IdentityResult> CreateUserWithRoleStoreOwnerAsync(RegisterDto model)
+    public async Task<IdentityResult> CreateUserWithRoleTeacherAsync(RegisterDto model)
     {
-        return await CreateUserWithRoleAsync(model, "StoreOwner");
+        return await CreateUserWithRoleAsync(model, "Teacher");
     }
 
     }
