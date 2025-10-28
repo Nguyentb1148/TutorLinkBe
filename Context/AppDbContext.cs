@@ -21,6 +21,8 @@ namespace TutorLinkBe.Context;
         public DbSet<QuizSubmission> QuizSubmissions { get; set; }
         public DbSet<QuizAnswer> QuizAnswers { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<TutorRequest> TutorRequests { get; set; }
+        public DbSet<RoleHistory> RoleHistories { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder); // Identity setup
@@ -131,6 +133,32 @@ namespace TutorLinkBe.Context;
                 entity.Property(rt => rt.UserId).IsRequired();
                 entity.HasIndex(rt => rt.Token);
             });
+            modelBuilder.Entity<TutorRequest>(entity =>
+            {
+                entity.HasKey(tr => tr.Id);
+                entity.Property(tr => tr.UserId).IsRequired();
 
+                entity.HasOne(tr => tr.User)
+                    .WithMany(u => u.TutorRequests)
+                    .HasForeignKey(tr => tr.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(tr => tr.Status)
+                    .HasConversion<string>();
+            });
+            modelBuilder.Entity<RoleHistory>(entity =>
+            {
+                entity.HasKey(rh => rh.Id);
+                entity.Property(rh => rh.UserId).IsRequired();
+
+                entity.HasOne(rh => rh.User)
+                    .WithMany(u => u.RoleHistories)
+                    .HasForeignKey(rh => rh.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(rh => rh.ChangedByUser)
+                    .WithMany()
+                    .HasForeignKey(rh => rh.ChangedBy)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
         }
 }

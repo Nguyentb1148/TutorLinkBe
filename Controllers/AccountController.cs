@@ -11,7 +11,7 @@ using Newtonsoft.Json;
 
 namespace TutorLinkBe.Controllers
 {
-     [ApiController]
+    [ApiController]
     [Route("api/[controller]")]
     public class AccountController : ControllerBase
     {
@@ -228,6 +228,7 @@ namespace TutorLinkBe.Controllers
             }
             return BadRequest("Error confirming your email.");
         }
+        
         [HttpPost("logout")]
         public async Task<IActionResult> Logout([FromBody] RevokeTokenDto request)
         {

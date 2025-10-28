@@ -17,4 +17,6 @@ public class ApplicationUser : IdentityUser
     public ICollection<ClassroomStudent> ClassroomStudents { get; set; }
     public ICollection<QuizSubmission> QuizSubmissions { get; set; }
     public ICollection<RefreshToken> RefreshTokens { get; set; }
+    public ICollection<TutorRequest> TutorRequests { get; set; }
+    public ICollection<RoleHistory> RoleHistories { get; set; }
 }

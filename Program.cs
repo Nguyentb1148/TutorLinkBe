@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using TutorLinkBe.Config;
 using TutorLinkBe.Services;
@@ -9,6 +10,7 @@ using TutorLinkBe.Repository;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using TutorLinkBe.Helper;
 using TutorLinkBe.MiddleWare;
@@ -18,6 +20,20 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToLogin = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+});
+
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSettings"));
 builder.Services.AddSingleton<MongoDbService>();
 // builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresConnection")));
@@ -47,26 +63,40 @@ builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnC
 
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options => {
-        options.TokenValidationParameters = new TokenValidationParameters {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettings["Issuer"],
-            ValidAudience = jwtSettings["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]))
-        };
-    });
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options => {
+    options.TokenValidationParameters = new TokenValidationParameters {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidAudience = jwtSettings["Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"])),
+
+        RoleClaimType = ClaimTypes.Role,
+        // NameClaimType = ClaimTypes.NameIdentifier
+        NameClaimType = JwtRegisteredClaimNames.Sub
+    };
+});
+
 
 builder.Services.AddAuthorization(options => {
     options.DefaultPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
 });
+
+// Add authorization handler for debugging
+builder.Services.AddScoped<IAuthorizationHandler, DebugAuthorizationHandler>();
 builder.Services.AddHttpContextAccessor(); 
 
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
@@ -99,7 +129,7 @@ app.UseExceptionHandler(a => a.Run(async context => {
     await context.Response.WriteAsJsonAsync(new { error = "An unexpected error occurred." });
 }));
 app.UseCors("AllowAll");
-app.UseMiddleware<JwtMiddleware>();
+// app.UseMiddleware<JwtMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 // app.UseHttpsRedirection();

@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace TutorLinkBe.MiddleWare;
 
@@ -66,9 +67,17 @@ public class JwtMiddleware
             var jwtToken = (JwtSecurityToken)validatedToken;
             var userId = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
             var roles = jwtToken.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
-
+        
+            _logger.LogInformation($"User: {userId}, Roles: {string.Join(", ", roles)}");
+        
             if (userId != null)
             {
+                // Create a proper ClaimsPrincipal for ASP.NET Core authorization
+                var claims = jwtToken.Claims.ToList();
+                var identity = new ClaimsIdentity(claims, JwtBearerDefaults.AuthenticationScheme);
+                var principal = new ClaimsPrincipal(identity);
+            
+                context.User = principal; // This is the key line that was missing
                 context.Items["UserId"] = userId;
                 context.Items["Roles"] = roles;
             }
@@ -76,7 +85,7 @@ public class JwtMiddleware
         catch (Exception ex)
         {
             _logger.LogError(ex, "JwtMiddleware: Error validating JWT token.");
-            throw; // Let the caller handle 401 response
+            throw;
         }
     }
 }
