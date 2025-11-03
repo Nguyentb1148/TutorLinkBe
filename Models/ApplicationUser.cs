@@ -7,8 +7,9 @@ public class ApplicationUser : IdentityUser
     public string? AvatarUrl { get; set; }
     public string? Bio { get; set; }
     public string? Role { get; set; }
+    public string? FullName { get; set; }
     public bool IsActive { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } 
     public DateTime? LastLoginAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 

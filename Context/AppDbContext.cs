@@ -23,6 +23,7 @@ namespace TutorLinkBe.Context;
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<TutorRequest> TutorRequests { get; set; }
         public DbSet<RoleHistory> RoleHistories { get; set; }
+        public DbSet<LessonVideoUrl> LessonVideoUrls { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder); // Identity setup
@@ -34,13 +35,7 @@ namespace TutorLinkBe.Context;
             modelBuilder.Entity<ClassroomStudent>()
                 .HasIndex(cs => new { cs.ClassroomId, cs.StudentId })
                 .IsUnique();
-
-            modelBuilder.Entity<Classroom>()
-                .HasOne(c => c.Tutor)
-                .WithMany(u => u.Classrooms)
-                .HasForeignKey(c => c.TutorId)
-                .OnDelete(DeleteBehavior.Restrict);
-
+            
             modelBuilder.Entity<Course>()
                 .HasOne(c => c.Classroom)
                 .WithMany(cl => cl.Courses)
@@ -113,25 +108,54 @@ namespace TutorLinkBe.Context;
                 .HasForeignKey(qa => qa.SelectedOptionId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<ClassroomStudent>()
-                .HasOne(cs => cs.Classroom)
-                .WithMany(c => c.ClassroomStudents)
-                .HasForeignKey(cs => cs.ClassroomId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<ClassroomStudent>()
-                .HasOne(cs => cs.Student)
-                .WithMany(u => u.ClassroomStudents)
-                .HasForeignKey(cs => cs.StudentId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // Configure RefreshToken entity explicitly
+            modelBuilder.Entity<ClassroomStudent>(entity =>
+            {
+                entity.HasOne(cs => cs.Classroom)
+                    .WithMany(c => c.ClassroomStudents)
+                    .HasForeignKey(cs => cs.ClassroomId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+            modelBuilder.Entity<ClassroomStudent>(entity =>
+            {
+                entity.HasOne(cs => cs.Student)
+                    .WithMany(u => u.ClassroomStudents)
+                    .HasForeignKey(cs => cs.StudentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(cs => cs.EnrollmentStatus)
+                      .HasConversion<string>();
+            });
+            modelBuilder.Entity<Classroom>()
+                .HasOne(c => c.Tutor)
+                .WithMany(u => u.Classrooms)
+                .HasForeignKey(c => c.TutorId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Classroom>()
+                .Property(c => c.Status)
+                .HasConversion<string>();
             modelBuilder.Entity<RefreshToken>(entity =>
             {
                 entity.HasKey(rt => rt.Id);
                 entity.Property(rt => rt.Token).IsRequired();
-                entity.Property(rt => rt.UserId).IsRequired();
+                entity.Property(rt => rt.UserId).IsRequired(false);
                 entity.HasIndex(rt => rt.Token);
+            });
+
+            modelBuilder.Entity<RefreshToken>()
+                .HasOne(rt => rt.User)
+                .WithMany(u => u.RefreshTokens)
+                .HasForeignKey(rt => rt.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            modelBuilder.Entity<LessonVideoUrl>(entity =>
+            {
+                entity.HasKey(lv => lv.Id);
+                entity.Property(lv => lv.Url).IsRequired();
+                entity.Property(lv => lv.LessonId).IsRequired();
+
+                entity.HasOne(lv => lv.Lesson)
+                      .WithMany(l => l.LessonVideoUrls)
+                      .HasForeignKey(lv => lv.LessonId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
             modelBuilder.Entity<TutorRequest>(entity =>
             {
@@ -149,7 +173,6 @@ namespace TutorLinkBe.Context;
             {
                 entity.HasKey(rh => rh.Id);
                 entity.Property(rh => rh.UserId).IsRequired();
-
                 entity.HasOne(rh => rh.User)
                     .WithMany(u => u.RoleHistories)
                     .HasForeignKey(rh => rh.UserId)

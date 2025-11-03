@@ -1,16 +1,27 @@
-namespace TutorLinkBe.Models;
+using Supabase.Gotrue.Exceptions;
 
-public class ClassroomStudent
+namespace TutorLinkBe.Models
 {
-    public Guid ClassroomStudentId { get; set; }
-    public Guid ClassroomId { get; set; }
-    public string StudentId { get; set; }
+    public class ClassroomStudent
+    {
+        public Guid ClassroomStudentId { get; set; }
+        public Guid ClassroomId { get; set; }
+        public string StudentId { get; set; }
+        public bool IsApproved { get; set; }
+        public DateTime JoinedAt { get; set; }
+        // Track leave or kick events (simple for v1)
+        public bool IsActive { get; set; } = true;
+        public EnrollmentStatus EnrollmentStatus { get; set; } 
+        public Classroom Classroom { get; set; }
+        public ApplicationUser Student { get; set; }
+    }
 
-    public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
-    public bool IsApproved { get; set; }
-    public string EnrollmentStatus { get; set; }
-
-    // Navigation
-    public Classroom Classroom { get; set; }
-    public ApplicationUser Student { get; set; }
+    public enum EnrollmentStatus
+    {
+        Pending, 
+        Approved, 
+        Rejected,
+        Left, 
+        Removed
+    }
 }
