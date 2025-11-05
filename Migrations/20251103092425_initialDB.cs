@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace TutorLinkBe.Migrations
 {
     /// <inheritdoc />
-    public partial class initialDb : Migration
+    public partial class initialDB : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -34,6 +34,7 @@ namespace TutorLinkBe.Migrations
                     AvatarUrl = table.Column<string>(type: "text", nullable: true),
                     Bio = table.Column<string>(type: "text", nullable: true),
                     Role = table.Column<string>(type: "text", nullable: true),
+                    FullName = table.Column<string>(type: "text", nullable: true),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     LastLoginAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -174,7 +175,11 @@ namespace TutorLinkBe.Migrations
                     Code = table.Column<string>(type: "text", nullable: false),
                     Description = table.Column<string>(type: "text", nullable: false),
                     ThumbnailUrl = table.Column<string>(type: "text", nullable: false),
+                    StartAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    EndAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     Status = table.Column<string>(type: "text", nullable: false),
+                    MaxCapacity = table.Column<int>(type: "integer", nullable: false),
+                    Note = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -195,7 +200,7 @@ namespace TutorLinkBe.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Token = table.Column<string>(type: "text", nullable: false),
-                    UserId = table.Column<string>(type: "text", nullable: false),
+                    UserId = table.Column<string>(type: "text", nullable: true),
                     IssuedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ExpiresUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     IsRevoked = table.Column<bool>(type: "boolean", nullable: false),
@@ -214,14 +219,64 @@ namespace TutorLinkBe.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "RoleHistories",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<string>(type: "text", nullable: false),
+                    OldRole = table.Column<string>(type: "text", nullable: false),
+                    NewRole = table.Column<string>(type: "text", nullable: false),
+                    ChangedBy = table.Column<string>(type: "text", nullable: false),
+                    ChangedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RoleHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_RoleHistories_AspNetUsers_ChangedBy",
+                        column: x => x.ChangedBy,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_RoleHistories_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TutorRequests",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<string>(type: "text", nullable: false),
+                    Status = table.Column<string>(type: "text", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TutorRequests", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TutorRequests_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ClassroomStudents",
                 columns: table => new
                 {
                     ClassroomStudentId = table.Column<Guid>(type: "uuid", nullable: false),
                     ClassroomId = table.Column<Guid>(type: "uuid", nullable: false),
                     StudentId = table.Column<string>(type: "text", nullable: false),
-                    JoinedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     IsApproved = table.Column<bool>(type: "boolean", nullable: false),
+                    JoinedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     EnrollmentStatus = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
@@ -246,12 +301,17 @@ namespace TutorLinkBe.Migrations
                 columns: table => new
                 {
                     CourseId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ClassroomId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TutorId = table.Column<string>(type: "text", nullable: false),
+                    ClassroomId = table.Column<Guid>(type: "uuid", nullable: true),
                     Title = table.Column<string>(type: "text", nullable: false),
                     Description = table.Column<string>(type: "text", nullable: false),
                     ThumbnailUrl = table.Column<string>(type: "text", nullable: false),
+                    IsTemplate = table.Column<bool>(type: "boolean", nullable: false),
                     IsPublished = table.Column<bool>(type: "boolean", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
                     OrderIndex = table.Column<int>(type: "integer", nullable: false),
+                    StartDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    EndDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
@@ -259,6 +319,12 @@ namespace TutorLinkBe.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Courses", x => x.CourseId);
+                    table.ForeignKey(
+                        name: "FK_Courses_AspNetUsers_TutorId",
+                        column: x => x.TutorId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_Courses_Classrooms_ClassroomId",
                         column: x => x.ClassroomId,
@@ -275,14 +341,13 @@ namespace TutorLinkBe.Migrations
                     CourseId = table.Column<Guid>(type: "uuid", nullable: false),
                     Title = table.Column<string>(type: "text", nullable: false),
                     Description = table.Column<string>(type: "text", nullable: false),
-                    FileUrl = table.Column<string>(type: "text", nullable: false),
-                    VideoUrl = table.Column<string>(type: "text", nullable: false),
+                    DocxFilePath = table.Column<string>(type: "text", nullable: false),
+                    CoverImageUrl = table.Column<string>(type: "text", nullable: false),
                     OrderIndex = table.Column<int>(type: "integer", nullable: false),
                     DurationMinutes = table.Column<int>(type: "integer", nullable: false),
-                    IsPublished = table.Column<bool>(type: "boolean", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -292,6 +357,27 @@ namespace TutorLinkBe.Migrations
                         column: x => x.CourseId,
                         principalTable: "Courses",
                         principalColumn: "CourseId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "LessonVideoUrls",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    LessonId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Url = table.Column<string>(type: "text", nullable: false),
+                    Position = table.Column<int>(type: "integer", nullable: false),
+                    Title = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LessonVideoUrls", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_LessonVideoUrls_Lessons_LessonId",
+                        column: x => x.LessonId,
+                        principalTable: "Lessons",
+                        principalColumn: "LessonId",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -513,9 +599,19 @@ namespace TutorLinkBe.Migrations
                 column: "ClassroomId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Courses_TutorId",
+                table: "Courses",
+                column: "TutorId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Lessons_CourseId",
                 table: "Lessons",
                 column: "CourseId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LessonVideoUrls_LessonId",
+                table: "LessonVideoUrls",
+                column: "LessonId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_LessonViews_LessonId_StudentId",
@@ -577,6 +673,21 @@ namespace TutorLinkBe.Migrations
                 name: "IX_RefreshTokens_UserId",
                 table: "RefreshTokens",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RoleHistories_ChangedBy",
+                table: "RoleHistories",
+                column: "ChangedBy");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RoleHistories_UserId",
+                table: "RoleHistories",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TutorRequests_UserId",
+                table: "TutorRequests",
+                column: "UserId");
         }
 
         /// <inheritdoc />
@@ -601,6 +712,9 @@ namespace TutorLinkBe.Migrations
                 name: "ClassroomStudents");
 
             migrationBuilder.DropTable(
+                name: "LessonVideoUrls");
+
+            migrationBuilder.DropTable(
                 name: "LessonViews");
 
             migrationBuilder.DropTable(
@@ -608,6 +722,12 @@ namespace TutorLinkBe.Migrations
 
             migrationBuilder.DropTable(
                 name: "RefreshTokens");
+
+            migrationBuilder.DropTable(
+                name: "RoleHistories");
+
+            migrationBuilder.DropTable(
+                name: "TutorRequests");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");

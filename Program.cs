@@ -38,6 +38,7 @@ builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSet
 builder.Services.AddSingleton<MongoDbService>();
 // builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresConnection")));
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("SupabaseConnection")));
+
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     {
         options.User.AllowedUserNameCharacters = null;
@@ -61,7 +62,6 @@ builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnC
 #endif
     .AddEnvironmentVariables();
 
-
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 builder.Services.AddAuthentication(options =>
 {
@@ -83,20 +83,27 @@ builder.Services.AddAuthentication(options =>
         NameClaimType = JwtRegisteredClaimNames.Sub
     };
 });
-
+//AutoMapper
+var autoMapperLicense = builder.Configuration["AutoMapper:LicenseKey"];
+builder.Services.AddAutoMapper(cfg =>
+{
+    cfg.LicenseKey = autoMapperLicense;
+},typeof(Program).Assembly);
 
 builder.Services.AddAuthorization(options => {
     options.DefaultPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
 });
-
 // Add authorization handler for debugging
 builder.Services.AddScoped<IAuthorizationHandler, DebugAuthorizationHandler>();
+
 builder.Services.AddHttpContextAccessor(); 
 
 builder.Logging.ClearProviders();
+
 builder.Logging.AddConsole();
+
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
@@ -111,7 +118,6 @@ using (var scope = app.Services.CreateScope())
         logger.LogError(ex, "Error seeding roles");
     }
 }
-
 
 // Configure the HTTP request pipeline.
 app.UseSwagger();

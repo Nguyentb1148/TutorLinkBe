@@ -12,8 +12,8 @@ using TutorLinkBe.Context;
 namespace TutorLinkBe.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251026103637_initialDb")]
-    partial class initialDb
+    [Migration("20251103092425_initialDB")]
+    partial class initialDB
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -185,6 +185,9 @@ namespace TutorLinkBe.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("FullName")
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
@@ -259,9 +262,21 @@ namespace TutorLinkBe.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("EndAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("MaxCapacity")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("StartAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -298,6 +313,9 @@ namespace TutorLinkBe.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsApproved")
                         .HasColumnType("boolean");
 
@@ -324,7 +342,7 @@ namespace TutorLinkBe.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ClassroomId")
+                    b.Property<Guid?>("ClassroomId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -337,10 +355,22 @@ namespace TutorLinkBe.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsPublished")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsTemplate")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("OrderIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
                         .HasColumnType("integer");
 
                     b.Property<string>("ThumbnailUrl")
@@ -351,12 +381,18 @@ namespace TutorLinkBe.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("TutorId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("CourseId");
 
                     b.HasIndex("ClassroomId");
+
+                    b.HasIndex("TutorId");
 
                     b.ToTable("Courses");
                 });
@@ -370,27 +406,28 @@ namespace TutorLinkBe.Migrations
                     b.Property<Guid>("CourseId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<string>("CoverImageUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("DurationMinutes")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("FileUrl")
+                    b.Property<string>("DocxFilePath")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<bool>("IsPublished")
-                        .HasColumnType("boolean");
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("integer");
 
                     b.Property<int>("OrderIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
                         .HasColumnType("integer");
 
                     b.Property<string>("Title")
@@ -400,15 +437,38 @@ namespace TutorLinkBe.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("VideoUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.HasKey("LessonId");
 
                     b.HasIndex("CourseId");
 
                     b.ToTable("Lessons");
+                });
+
+            modelBuilder.Entity("TutorLinkBe.Models.LessonVideoUrl", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonId");
+
+                    b.ToTable("LessonVideoUrls");
                 });
 
             modelBuilder.Entity("TutorLinkBe.Models.LessonView", b =>
@@ -629,7 +689,6 @@ namespace TutorLinkBe.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("UserId")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -639,6 +698,67 @@ namespace TutorLinkBe.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("RefreshTokens");
+                });
+
+            modelBuilder.Entity("TutorLinkBe.Models.RoleHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewRole")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OldRole")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedBy");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RoleHistories");
+                });
+
+            modelBuilder.Entity("TutorLinkBe.Models.TutorRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("TutorRequests");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -727,10 +847,17 @@ namespace TutorLinkBe.Migrations
                     b.HasOne("TutorLinkBe.Models.Classroom", "Classroom")
                         .WithMany("Courses")
                         .HasForeignKey("ClassroomId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("TutorLinkBe.Models.ApplicationUser", "Tutor")
+                        .WithMany()
+                        .HasForeignKey("TutorId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Classroom");
+
+                    b.Navigation("Tutor");
                 });
 
             modelBuilder.Entity("TutorLinkBe.Models.Lesson", b =>
@@ -742,6 +869,17 @@ namespace TutorLinkBe.Migrations
                         .IsRequired();
 
                     b.Navigation("Course");
+                });
+
+            modelBuilder.Entity("TutorLinkBe.Models.LessonVideoUrl", b =>
+                {
+                    b.HasOne("TutorLinkBe.Models.Lesson", "Lesson")
+                        .WithMany("LessonVideoUrls")
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lesson");
                 });
 
             modelBuilder.Entity("TutorLinkBe.Models.LessonView", b =>
@@ -846,6 +984,35 @@ namespace TutorLinkBe.Migrations
                     b.HasOne("TutorLinkBe.Models.ApplicationUser", "User")
                         .WithMany("RefreshTokens")
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TutorLinkBe.Models.RoleHistory", b =>
+                {
+                    b.HasOne("TutorLinkBe.Models.ApplicationUser", "ChangedByUser")
+                        .WithMany()
+                        .HasForeignKey("ChangedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TutorLinkBe.Models.ApplicationUser", "User")
+                        .WithMany("RoleHistories")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChangedByUser");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TutorLinkBe.Models.TutorRequest", b =>
+                {
+                    b.HasOne("TutorLinkBe.Models.ApplicationUser", "User")
+                        .WithMany("TutorRequests")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -861,6 +1028,10 @@ namespace TutorLinkBe.Migrations
                     b.Navigation("QuizSubmissions");
 
                     b.Navigation("RefreshTokens");
+
+                    b.Navigation("RoleHistories");
+
+                    b.Navigation("TutorRequests");
                 });
 
             modelBuilder.Entity("TutorLinkBe.Models.Classroom", b =>
@@ -877,6 +1048,8 @@ namespace TutorLinkBe.Migrations
 
             modelBuilder.Entity("TutorLinkBe.Models.Lesson", b =>
                 {
+                    b.Navigation("LessonVideoUrls");
+
                     b.Navigation("LessonViews");
 
                     b.Navigation("Quizzes");

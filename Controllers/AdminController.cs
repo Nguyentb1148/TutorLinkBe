@@ -47,7 +47,7 @@ public class AdminController : ControllerBase
 
         return Ok($"User {email} role updated to {newRole}.");
     }
-
+    
 
     [Authorize(Roles = "Admin", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     [HttpPut("tutor-request/{id}/approve")]

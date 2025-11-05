@@ -2,11 +2,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TutorLinkBe.Dto;
 
+using System.ComponentModel.DataAnnotations;
+
 public class LoginViaGoogleDto
 {
-    [Required]
-    [EmailAddress]
-    public string Email { get; set; }
-    public string Picture { get; set; }
-    public string Name { get; set; }
+    [Required(ErrorMessage = "Google credential is required.")]
+    public string Credential { get; set; }
 }

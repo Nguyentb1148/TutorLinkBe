@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using TutorLinkBe.Context;
@@ -7,7 +8,6 @@ using TutorLinkBe.Repository;
 using Microsoft.EntityFrameworkCore;
 using TutorLinkBe.Dto;
 using TutorLinkBe.Services;
-using Newtonsoft.Json;
 
 namespace TutorLinkBe.Controllers
 {
@@ -80,93 +80,89 @@ namespace TutorLinkBe.Controllers
         [HttpPost("loginViaGoogle")]
         public async Task<IActionResult> LoginViaGoogle([FromBody] LoginViaGoogleDto model)
         {
-            if (model == null || string.IsNullOrEmpty(model.Email))
-                return BadRequest(new { message = "Email is required" });
-            string pwdValue = _configuration["pwd:pwd"];
-            
-            if (string.IsNullOrEmpty(pwdValue))
-                return StatusCode(500, new { message = "Server password configuration missing" });
-
-            // check if user exists
-            var user = await _userManager.FindByEmailAsync(model.Email);
-
-            if (user == null)
+            try
             {
-                // create a new user
-                user = new ApplicationUser
+                var settings = new GoogleJsonWebSignature.ValidationSettings
                 {
-                    UserName = model.Name,
-                    Email = model.Email,
-                    AvatarUrl = model.Picture,
-                    EmailConfirmed = false,
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow
+                    Audience = new List<string> { _configuration["GoogleAuth:ClientId"] }
                 };
 
-                var createResult = await _userManager.CreateAsync(user, pwdValue);
+                var payload = await GoogleJsonWebSignature.ValidateAsync(model.Credential, settings);
 
-                if (!createResult.Succeeded)
+                if (payload == null || string.IsNullOrEmpty(payload.Email))
+                    return Unauthorized(new { message = "Invalid Google credential." });
+
+                var loginInfo = new UserLoginInfo("Google", payload.Subject, "Google");
+                var user = await _userManager.FindByLoginAsync(loginInfo.LoginProvider, loginInfo.ProviderKey);
+
+                if (user == null)
                 {
-                    foreach (var err in createResult.Errors)
-                        ModelState.AddModelError(string.Empty, err.Description);
-                    return BadRequest(ModelState);
+                    user = await _userManager.FindByEmailAsync(payload.Email);
+
+                    if (user == null)
+                    {
+                        user = new ApplicationUser
+                        {
+                            UserName = payload.Name,
+                            Email = payload.Email,
+                            AvatarUrl = payload.Picture,
+                            EmailConfirmed = true,
+                            IsActive = true,
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                        var createResult = await _userManager.CreateAsync(user);
+                        if (!createResult.Succeeded)
+                        {
+                            var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
+                            return BadRequest(new { message = $"User creation failed: {errors}" });
+                        }
+
+                        await _userManager.AddToRoleAsync(user, "User");
+                    }
+
+                    var addLoginResult = await _userManager.AddLoginAsync(user, loginInfo);
+                    if (!addLoginResult.Succeeded)
+                    {
+                        var errors = string.Join(", ", addLoginResult.Errors.Select(e => e.Description));
+                        return BadRequest(new { message = $"Failed to link Google account: {errors}" });
+                    }
                 }
+                var roles = await _userManager.GetRolesAsync(user);
+                var accessToken = await _tokenService.GenerateAccessToken(user);
+                var jwtId = new JwtSecurityTokenHandler().ReadJwtToken(accessToken)
+                    .Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti)?.Value;
+                var refreshToken = _tokenService.GenerateRefreshToken(user.Id, jwtId);
+                await SaveRefreshTokenAsync(refreshToken);
 
-                // add role
-                await _userManager.AddToRoleAsync(user, "User");
-                var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                var callbackUrl = Url.Action(nameof(ConfirmEmail), "Account", new { userId = user.Id, code }, protocol: HttpContext.Request.Scheme);
-                await _emailService.SendEmailAsync(model.Email, "Confirm your email", $"Please confirm your account by clicking this link: <a href='{callbackUrl}'>Link</a>");
+                var userRole = roles.Contains("Admin") ? "Admin"
+                             : roles.Contains("Teacher") ? "Teacher"
+                             : "User";
 
-                return Ok(new { message = "Google account registered. Please verify your email before login." });
+                return Ok(new
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken.Token,
+                    User = new
+                    {
+                        user.Id,
+                        user.UserName,
+                        user.Email,
+                        user.EmailConfirmed,
+                        user.AvatarUrl
+                    },
+                    Role = userRole
+                });
             }
-
-            // existing user — must have confirmed email before login
-            if (!user.EmailConfirmed)
+            catch (InvalidJwtException)
             {
-                return Unauthorized(new { message = "Please confirm your email before logging in." });
+                return Unauthorized(new { message = "Invalid Google credential token." });
             }
-
-            // sign in with the shared password
-            var result = await _signInManager.PasswordSignInAsync(user, pwdValue, false, false);
-            if (!result.Succeeded)
+            catch (Exception ex)
             {
-                return Unauthorized(new { message = $"Invalid login attempt." });
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
             }
-
-            // generate tokens (updated to receive JTI)
-            var roles = await _userManager.GetRolesAsync(user);
-            var accessToken = await _tokenService.GenerateAccessToken(user);
-            var jwtId = new JwtSecurityTokenHandler().ReadJwtToken(accessToken)
-                .Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti)?.Value;
-            var refreshToken = _tokenService.GenerateRefreshToken(user.Id, jwtId);
-
-
-            await SaveRefreshTokenAsync(refreshToken);
-
-            var userRole = roles.Contains("Admin") ? "Admin"
-                         : roles.Contains("Teacher") ? "Teacher"
-                         : "User";
-
-            var userData = new
-            {
-                user.Id,
-                user.UserName,
-                user.Email,
-                user.EmailConfirmed,
-                user.PhoneNumber,
-                user.AvatarUrl
-            };
-
-            return Ok(new
-            {
-                AccessToken = accessToken,
-                RefreshToken = refreshToken.Token,
-                User = userData,
-                Role = userRole
-            });
         }
-        
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken( RefreshTokenRequestDto request)
         {
@@ -253,7 +249,7 @@ namespace TutorLinkBe.Controllers
                 user.Email,
                 user.EmailConfirmed,
                 user.PhoneNumber,
-                user.AvatarUrl
+                user.AvatarUrl,
             };
             if (user == null) {
                 _logger.LogWarning("Login failed for {Email}: User not found", model.Email);
