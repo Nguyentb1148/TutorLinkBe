@@ -47,16 +47,13 @@ namespace TutorLinkBe.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto model)
         {
-            _logger.LogInformation("register start");
-
-            if (!ModelState.IsValid || model.Password!=model.ConfirmPassword) {
+            if (!ModelState.IsValid || model.Password!=model.ConfirmPassword)
                 return BadRequest(ModelState);
-            }
             
             var existingUser = await _userManager.FindByEmailAsync(model.Email);
-            if (existingUser != null) {
+            if (existingUser != null) 
                 return Conflict(new { message = "Email is already registered." });
-            }
+            
             var result = await _userRepository.CreateUserWithRoleAsync(model, "User");
             if (result.Succeeded) {
                 var user = await _userManager.FindByEmailAsync(model.Email);
@@ -72,7 +69,6 @@ namespace TutorLinkBe.Controllers
                 foreach (var error in result.Errors) {
                     ModelState.AddModelError(string.Empty, error.Description);
                 }
-
                 return BadRequest(ModelState);
             }
         }
@@ -82,27 +78,25 @@ namespace TutorLinkBe.Controllers
         {
             try
             {
-                var settings = new GoogleJsonWebSignature.ValidationSettings
-                {
-                    Audience = new List<string> { _configuration["GoogleAuth:ClientId"] }
+                var settings = new GoogleJsonWebSignature.ValidationSettings {
+                    Audience = new List<string> {
+                            _configuration["GoogleAuth:ClientId"] ?? throw new InvalidOperationException()
+                        }
                 };
 
                 var payload = await GoogleJsonWebSignature.ValidateAsync(model.Credential, settings);
 
                 if (payload == null || string.IsNullOrEmpty(payload.Email))
-                    return Unauthorized(new { message = "Invalid Google credential." });
+                    return Unauthorized(new {sucess=false, message = "Invalid Google credential." });
 
                 var loginInfo = new UserLoginInfo("Google", payload.Subject, "Google");
                 var user = await _userManager.FindByLoginAsync(loginInfo.LoginProvider, loginInfo.ProviderKey);
 
-                if (user == null)
-                {
+                if (user == null) {
                     user = await _userManager.FindByEmailAsync(payload.Email);
 
-                    if (user == null)
-                    {
-                        user = new ApplicationUser
-                        {
+                    if (user == null) {
+                        user = new ApplicationUser {
                             UserName = payload.Name,
                             Email = payload.Email,
                             AvatarUrl = payload.Picture,
@@ -112,20 +106,18 @@ namespace TutorLinkBe.Controllers
                         };
 
                         var createResult = await _userManager.CreateAsync(user);
-                        if (!createResult.Succeeded)
-                        {
+                        if (!createResult.Succeeded) {
                             var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
-                            return BadRequest(new { message = $"User creation failed: {errors}" });
+                            return BadRequest(new { sucess=false, message= $"User creation failed: {errors}" });
                         }
 
                         await _userManager.AddToRoleAsync(user, "User");
                     }
 
                     var addLoginResult = await _userManager.AddLoginAsync(user, loginInfo);
-                    if (!addLoginResult.Succeeded)
-                    {
+                    if (!addLoginResult.Succeeded) {
                         var errors = string.Join(", ", addLoginResult.Errors.Select(e => e.Description));
-                        return BadRequest(new { message = $"Failed to link Google account: {errors}" });
+                        return BadRequest(new { sucess=false, message=$"Failed to link Google account: {errors}" });
                     }
                 }
                 var roles = await _userManager.GetRolesAsync(user);
@@ -139,28 +131,23 @@ namespace TutorLinkBe.Controllers
                              : roles.Contains("Teacher") ? "Teacher"
                              : "User";
 
-                return Ok(new
-                {
-                    AccessToken = accessToken,
-                    RefreshToken = refreshToken.Token,
-                    User = new
+                return Ok( new
                     {
-                        user.Id,
-                        user.UserName,
-                        user.Email,
-                        user.EmailConfirmed,
-                        user.AvatarUrl
-                    },
-                    Role = userRole
-                });
+                        sucess = true,
+                        message = "User logged in successfully",
+                        data= new {
+                            AccessToken = accessToken,
+                            RefreshToken = refreshToken.Token,
+                            User = new { user.Id, user.UserName, user.Email, user.EmailConfirmed, user.AvatarUrl },
+                            Role = userRole
+                        }
+                    });
             }
-            catch (InvalidJwtException)
-            {
-                return Unauthorized(new { message = "Invalid Google credential token." });
+            catch (InvalidJwtException) {
+                return Unauthorized(new { sucess = false, message = "Invalid Google credential token." });
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
+            catch (Exception ex) {
+                return StatusCode(500,new { sucess = false, message =$"Internal server error: {ex.Message}" });
             }
         }
         [HttpPost("refresh-token")]
@@ -168,21 +155,25 @@ namespace TutorLinkBe.Controllers
         {
             var refreshToken = await _context.RefreshTokens
                 .SingleOrDefaultAsync(rt => rt.Token == request.Token && !rt.IsRevoked);
-            if (refreshToken == null) {
-                return BadRequest(new { message = "Invalid refresh token." });
-            }
+            if (refreshToken == null) 
+                return BadRequest(new { sucess = false, message ="Invalid refresh token." });
+            
             if (refreshToken.ExpiresUtc < DateTime.UtcNow) {
-                return Unauthorized(new { message = "Refresh token has expired. Please log in again." });
+                return Unauthorized(new { sucess = false, message ="Refresh token has expired. Please log in again." });
             }
             var user = await _userManager.FindByIdAsync(refreshToken.UserId);
-            if (user == null) {
-                return BadRequest(new { message = "User not found." });
-            }
+            if (user == null) 
+                return BadRequest(new { sucess = false, message = "User not found." });
+            
             // Generate new access token (capture JTI if needed)
             var newAccessToken = await _tokenService.GenerateAccessToken(user);
 
-            return Ok(new {
+            return Ok( new { 
+                sucess = true, 
+                message ="Refresh token successfully.",
+                 data= new {
                 AccessToken = newAccessToken
+                }
             });
         }
        
@@ -209,30 +200,26 @@ namespace TutorLinkBe.Controllers
         public async Task<IActionResult> ConfirmEmail(string userId, string code)
         {
             if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(code))
-            {
-                return BadRequest("User ID and Code are required to confirm email");
-            }
+                return BadRequest(new { sucess = false, message ="User ID and Code are required to confirm email"});
+            
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
-            {
-                return BadRequest("Invalid User ID");
-            }
+                return BadRequest(new { sucess = false, message ="Invalid User ID"});
+            
             var result = await _userManager.ConfirmEmailAsync(user, code);
             if (result.Succeeded)
-            {
-                return Ok(new { message = "Email confirmed successfully." });
-            }
-            return BadRequest("Error confirming your email.");
+                return Ok(new { sucess = true, message ="Email confirmed successfully." });
+            return BadRequest(new { sucess = false, message ="Error confirming your email."});
         }
         
         [HttpPost("logout")]
         public async Task<IActionResult> Logout([FromBody] RevokeTokenDto request)
         {
             var token = await _context.RefreshTokens.SingleOrDefaultAsync(r => r.Token == request.Token);
-            if (token == null) return NotFound(new { message = "Token not found" });
+            if (token == null) return NotFound(new { sucess = false, message ="Token not found" });
             token.IsRevoked = true;
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Logout successful, token revoked." });
+            return Ok(new { sucess = true, message ="Logout successful, token revoked." });
         }
 
         [HttpPost("login")]
@@ -251,14 +238,12 @@ namespace TutorLinkBe.Controllers
                 user.PhoneNumber,
                 user.AvatarUrl,
             };
-            if (user == null) {
-                _logger.LogWarning("Login failed for {Email}: User not found", model.Email);
-                return Unauthorized(new { message = "Invalid login attempt Be." });
-            }
+            if (user == null) 
+                return Unauthorized(new { sucess = false, message = "Invalid login attempt Be." });
+            
             if (!user.EmailConfirmed)
-            {
-                return Unauthorized(new { message = "Please confirm your email before logging in." });
-            }
+                return Unauthorized(new { sucess = false, message = "Please confirm your email before logging in." });
+            
             var result = await _signInManager.PasswordSignInAsync(user, model.Password, model.RememberMe, false);
 
             if (result.Succeeded) {
@@ -267,15 +252,14 @@ namespace TutorLinkBe.Controllers
                 var refreshToken =_tokenService.GenerateRefreshToken(user.Id,Guid.NewGuid().ToString()); 
                 await SaveRefreshTokenAsync(refreshToken);
                 var userRole = roles.Contains("Admin") ? "Admin" : roles.Contains("Teacher") ? "Teacher" : "User";
-                return Ok(new {
-                    AccessToken = accessToken,
-                    RefreshToken = refreshToken.Token,
-                    User = userData,
-                    Role = userRole
+                return Ok(new{
+                    suceess = true,
+                    message = "User logged in successfully.",
+                    data= new { AccessToken = accessToken, RefreshToken = refreshToken.Token, User = userData, Role = userRole}
                 });
             }
             else {
-                return Unauthorized(new { message = "Invalid login attempt." });
+                return Unauthorized(new { sucess = false, message ="Invalid login attempt." });
             }
         }
     }

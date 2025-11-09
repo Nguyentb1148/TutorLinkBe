@@ -25,84 +25,124 @@ public class ClassroomStudentController : ControllerBase
 	}
 
 	[HttpPost("join")]
-	[Authorize(Roles = "User")]
-	public async Task<IActionResult> Join([FromBody] ClassroomStudentCreateDto req)
+	[Authorize]
+	public async Task<IActionResult> JoinClassroom([FromBody] ClassroomStudentRequestDto request)
 	{
-		var userId = _userManager.GetUserId(User);
-
-		if (req == null || req.ClassroomId == Guid.Empty || string.IsNullOrWhiteSpace(req.Code))
+		if (request.ClassroomId == Guid.Empty || string.IsNullOrWhiteSpace(request.Code))
 			return BadRequest(new { message = "ClassroomId and Code are required." });
 
 		var classroom = await _context.Classrooms
-			.FirstOrDefaultAsync(c => c.ClassroomId == req.ClassroomId);
+			.FirstOrDefaultAsync(c => c.ClassroomId == request.ClassroomId && c.Code == request.Code);
 
 		if (classroom == null)
-			return NotFound(new { message = "Classroom not found." });
+			return NotFound(new { message = "Invalid classroom or code." });
 
-		if (!string.Equals(classroom.Code?.Trim(), req.Code?.Trim(), StringComparison.OrdinalIgnoreCase))
-			return BadRequest(new { message = "Invalid classroom code." });
+		var userId = _userManager.GetUserId(User);
 
-		var exists = await _context.ClassroomStudents
-			.AnyAsync(cs => cs.ClassroomId == classroom.ClassroomId && cs.StudentId == userId && cs.IsActive);
+		// Already member check
+		var existing = await _context.ClassroomStudents
+			.FirstOrDefaultAsync(cs => cs.ClassroomId == classroom.ClassroomId && cs.StudentId == userId);
 
-		if (exists)
-			return Conflict(new { message = "You already joined or have a pending request." });
+		if (existing is { EnrollmentStatus: EnrollmentStatus.Approved })
+			return Ok(new { success= true, message = "You are already a member of this classroom." });
 
-		var csEntity = new ClassroomStudent
-		{
-			ClassroomStudentId = Guid.NewGuid(),
+		var newJoin = new ClassroomStudent {
 			ClassroomId = classroom.ClassroomId,
 			StudentId = userId,
-			JoinedAt = DateTime.UtcNow,
-			IsActive = true,
-			EnrollmentStatus = EnrollmentStatus.Pending
+			EnrollmentStatus = EnrollmentStatus.Pending,
+			CreatedAt = DateTime.UtcNow,
+			UpdatedAt = DateTime.UtcNow
 		};
 
-		await _context.ClassroomStudents.AddAsync(csEntity);
+		_context.ClassroomStudents.Add(newJoin);
 		await _context.SaveChangesAsync();
 
-		var dto = _mapper.Map<ClassroomStudentDto>(csEntity);
-		return CreatedAtAction(nameof(GetMyClassrooms), new { }, dto);
+		return Ok(new {
+			success = true,
+			message = "Join request submitted. Please wait for teacher approval.",
+		});
 	}
 
 	[HttpGet("myClassrooms")]
 	[Authorize(Roles = "User")]
-	public async Task<IActionResult> GetMyClassrooms()
+	public async Task<IActionResult> GetMyClassrooms(
+		[FromQuery] int page = 1,
+		[FromQuery] int pageSize = 20,
+		[FromQuery] string sortBy = "CreatedAt",
+		[FromQuery] string order = "desc")
 	{
 		var userId = _userManager.GetUserId(User);
-		var entities = await _context.ClassroomStudents
+
+		var queryBase = _context.ClassroomStudents
 			.AsNoTracking()
 			.Where(cs => cs.StudentId == userId && cs.IsActive && cs.EnrollmentStatus == EnrollmentStatus.Approved)
 			.Include(cs => cs.Classroom)
-			.ToListAsync();
+			.ThenInclude(c => c.Tutor);
 
+
+		// Dynamic sorting
+		IQueryable<ClassroomStudent> query = sortBy.ToLower() switch
+		{
+			"name" => order == "asc"
+				? queryBase.OrderBy(cs => cs.Classroom.Name)
+				: queryBase.OrderByDescending(cs => cs.Classroom.Name),
+			_ => order == "asc"
+				? queryBase.OrderBy(cs => cs.CreatedAt)
+				: queryBase.OrderByDescending(cs => cs.CreatedAt)
+		};
+
+		var total = await query.CountAsync();
+		var entities = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 		var items = _mapper.Map<List<ClassroomStudentDto>>(entities);
-		return Ok(items);
-	}
 
+		return Ok(new {
+				success = true,
+				message = "GetMyClassrooms.",
+				data= new {
+					Total = total,
+					Page = page,
+					PageSize = pageSize,
+					Items = items
+				}
+			}
+		);
+	}
+	
 	[HttpDelete("leave/{classroomId:guid}")]
 	[Authorize(Roles = "User")]
 	public async Task<IActionResult> Leave(Guid classroomId)
 	{
 		var userId = _userManager.GetUserId(User);
+
 		var cs = await _context.ClassroomStudents
 			.FirstOrDefaultAsync(x => x.ClassroomId == classroomId && x.StudentId == userId && x.IsActive);
-		if (cs == null) return NotFound(new { message = "Membership not found." });
+
+		if (cs == null)
+			return NotFound(new { message = "Membership not found." });
+
+		if (cs.EnrollmentStatus == EnrollmentStatus.Left)
+			return Conflict(new { message = "You already left this classroom." });
 
 		cs.IsActive = false;
 		cs.EnrollmentStatus = EnrollmentStatus.Left;
+		cs.UpdatedAt = DateTime.UtcNow;
+
 		await _context.SaveChangesAsync();
-		return Ok(new { message = "Left classroom." });
+
+		return Ok(new
+		{
+			success = true,
+			message = "You have left the classroom successfully."
+		});
 	}
 	
 	[HttpGet("classroom-detail/{classroomId:guid}")]
-	[Authorize] 
+	[Authorize]
 	public async Task<IActionResult> GetClassroomDetail(Guid classroomId)
 	{
 		var userId = _userManager.GetUserId(User);
-		var userRoles = await _userManager.GetRolesAsync(await _userManager.GetUserAsync(User));
-		var isAdmin = userRoles.Contains("Admin");
-		var isTeacher = userRoles.Contains("Teacher");
+		var isAdmin = User.IsInRole("Admin");
+		var isTeacher = User.IsInRole("Teacher");
 
 		var classroom = await _context.Classrooms
 			.AsNoTracking()
@@ -110,19 +150,23 @@ public class ClassroomStudentController : ControllerBase
 			.FirstOrDefaultAsync(c => c.ClassroomId == classroomId);
 
 		if (classroom == null)
-			return NotFound(new { message = "Classroom not found." });
+			return NotFound(new { success = false, message = "Classroom not found." });
 
 		if (!isAdmin && !isTeacher)
 		{
 			var membership = await _context.ClassroomStudents
+				.AsNoTracking()
 				.FirstOrDefaultAsync(cs =>
 					cs.ClassroomId == classroomId &&
 					cs.StudentId == userId &&
-					cs.IsActive);
+					cs.EnrollmentStatus == EnrollmentStatus.Approved);
 
 			if (membership == null)
 				return Forbid();
 		}
+
+		if (classroom.Status != ClassroomStatus.Active && !isAdmin && classroom.TutorId != userId)
+			return Forbid();
 
 		var response = new
 		{
@@ -134,41 +178,46 @@ public class ClassroomStudentController : ControllerBase
 			TutorEmail = classroom.Tutor?.Email,
 			CreatedAt = classroom.CreatedAt,
 			Status = classroom.Status,
-			Courses = new List<object>()
+			Courses = new List<object>()// courses data for future
 		};
 
-		return Ok(response);
+		return Ok(new
+		{
+			success = true,
+			message = "Classroom details retrieved successfully.",
+			data = response
+		});
 	}
+
 	[HttpPost("approve-invite")]
 	[Authorize]
-	public async Task<IActionResult> ApproveInvite([FromBody] ClassroomStudentCreateDto request)
+	public async Task<IActionResult> ApproveInvite([FromBody] ClassroomStudentRequestDto request)
 	{
 		var userId = _userManager.GetUserId(User);
 
-		// Validate classroom
 		var classroom = await _context.Classrooms
 			.FirstOrDefaultAsync(c => c.ClassroomId == request.ClassroomId && c.Code == request.Code);
 
 		if (classroom == null)
-			return NotFound("Invalid classroom or code.");
+			return NotFound(new { message = "Invalid classroom or invite code." });
 
-		// Check if already joined
+		if (classroom.Status != ClassroomStatus.Active)
+			return BadRequest(new { message = "This classroom is not open for new members." });
+
 		var existing = await _context.ClassroomStudents
 			.FirstOrDefaultAsync(cs => cs.ClassroomId == request.ClassroomId && cs.StudentId == userId);
 
 		if (existing != null)
 		{
-			if (!existing.IsApproved)
-			{
-				existing.IsApproved = true;
-				existing.EnrollmentStatus = EnrollmentStatus.Approved;
-				existing.JoinedAt = DateTime.UtcNow;
-				await _context.SaveChangesAsync();
-			}
-			return Ok("Already joined or approved successfully.");
+			existing.IsApproved = true;
+			existing.IsActive = true;
+			existing.EnrollmentStatus = EnrollmentStatus.Approved;
+			existing.UpdatedAt = DateTime.UtcNow;
+
+			await _context.SaveChangesAsync();
+			return Ok(new { message = "Rejoined or reapproved successfully.", classroomId = classroom.ClassroomId });
 		}
 
-		// Add new student entry
 		var classroomStudent = new ClassroomStudent
 		{
 			ClassroomId = request.ClassroomId,
@@ -176,132 +225,271 @@ public class ClassroomStudentController : ControllerBase
 			IsApproved = true,
 			IsActive = true,
 			EnrollmentStatus = EnrollmentStatus.Approved,
-			JoinedAt = DateTime.UtcNow
+			CreatedAt = DateTime.UtcNow
 		};
 
 		_context.ClassroomStudents.Add(classroomStudent);
-		await _context.SaveChangesAsync();
 
-		return Ok("Joined classroom successfully.");
+		try
+		{
+			await _context.SaveChangesAsync();
+		}
+		catch (DbUpdateException)
+		{
+			return Conflict(new { message = "You already joined this classroom." });
+		}
+
+		return Ok(new {
+			sucess= true,
+			message = "Joined classroom successfully.",
+		});
 	}
-
-
-	[HttpGet("student/{classroomId:guid}")]
+	
+	[HttpGet("{classroomId:guid}/students")]
 	[Authorize]
-	public async Task<IActionResult> GetStudentsByClassroom(Guid classroomId)
+	public async Task<IActionResult> GetStudentsByClassroom(
+	    Guid classroomId,
+	    [FromQuery] int page = 1,
+	    [FromQuery] int pageSize = 20,
+	    [FromQuery] string? sortBy = "JoinedAt",
+	    [FromQuery] string? order = "desc")
+	{
+	    var userId = _userManager.GetUserId(User);
+	    var user = await _userManager.GetUserAsync(User);
+	    var userRoles = await _userManager.GetRolesAsync(user);
+	    var isAdmin = userRoles.Contains("Admin");
+
+	    var classroom = await _context.Classrooms
+	        .AsNoTracking()
+	        .FirstOrDefaultAsync(c => c.ClassroomId == classroomId);
+
+	    if (classroom == null)
+	        return NotFound(new { message = "Classroom not found" });
+
+	    if (!isAdmin && classroom.TutorId != userId) {
+	        var membership = await _context.ClassroomStudents
+	            .FirstOrDefaultAsync(cs => cs.ClassroomId == classroomId && cs.StudentId == userId && cs.IsApproved && cs.IsActive);
+
+	        if (membership == null)
+	            return Forbid();
+	    }
+
+	    var queryBase = _context.ClassroomStudents
+	        .AsNoTracking()
+	        .Where(cs => cs.ClassroomId == classroomId && cs.IsActive)
+	        .Include(cs => cs.Student);
+
+	    IQueryable<ClassroomStudent> query = sortBy switch {
+	        "name" => order == "asc"
+	            ? queryBase.OrderBy(cs => cs.Student.UserName)
+	            : queryBase.OrderByDescending(cs => cs.Student.UserName),
+	        _ => order == "asc"
+	            ? queryBase.OrderBy(cs => cs.CreatedAt)
+	            : queryBase.OrderByDescending(cs => cs.CreatedAt)
+	    };
+
+	    var totalCount = await query.CountAsync();
+	    var students = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+	    var list = students.Select(cs => new ClassroomStudentDto {
+	        ClassroomStudentId = cs.ClassroomStudentId,
+	        ClassroomId = cs.ClassroomId,
+	        StudentId = cs.StudentId,
+	        StudentName = cs.Student?.UserName,
+	        StudentEmail = cs.Student?.Email,
+	        AvatarUrl = cs.Student?.AvatarUrl,
+	        IsApproved = cs.IsApproved,
+	        IsActive = cs.IsActive,
+	        EnrollmentStatus = cs.EnrollmentStatus,
+	        JoinedAt = cs.CreatedAt
+	    }).ToList();
+
+	    return Ok(new {
+		    success = true,
+		    message = "Classroom students successfully.",
+		    data= new {
+			    totalCount,
+			    page, 
+			    pageSize,
+			    data = list
+		    }
+	    });
+	}
+	
+	[HttpGet("{classroomId:guid}/students/pending")]
+	[Authorize(Roles = "Teacher, Admin")]
+	public async Task<IActionResult> GetPending(
+		Guid classroomId,
+		[FromQuery] int page = 1,
+		[FromQuery] int pageSize = 20,
+		[FromQuery] string? sortBy = "JoinedAt",
+		[FromQuery] string? order = "asc")
 	{
 		var userId = _userManager.GetUserId(User);
+		var classroom = await _context.Classrooms.FirstOrDefaultAsync(c => c.ClassroomId == classroomId);
+		if (classroom == null) return NotFound(new { message = "Classroom not found." });
 
-		var classroom = await _context.Classrooms
+		if (classroom.TutorId != userId && !User.IsInRole("Admin"))
+			return Forbid();
+
+		var queryBase = _context.ClassroomStudents
 			.AsNoTracking()
-			.FirstOrDefaultAsync(c => c.ClassroomId == classroomId);
+			.Where(cs => cs.ClassroomId == classroomId && cs.EnrollmentStatus == EnrollmentStatus.Pending)
+			.Include(cs => cs.Student);
 
-		if (classroom == null)
-			return NotFound(new { message = "Classroom not found" });
+		IQueryable<ClassroomStudent> query = sortBy switch
+		{
+			"name" => order == "asc"
+				? queryBase.OrderBy(cs => cs.Student.UserName)
+				: queryBase.OrderByDescending(cs => cs.Student.UserName),
+			_ => order == "asc"
+				? queryBase.OrderBy(cs => cs.CreatedAt)
+				: queryBase.OrderByDescending(cs => cs.CreatedAt)
+		};
 
-		// if (classroom.TutorId != userId && !User.IsInRole("Admin"))
-		// 	return Forbid();
+		var totalCount = await query.CountAsync();
+		var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
-		var entities = await _context.ClassroomStudents
-			.AsNoTracking()
-			.Where(cs => cs.ClassroomId == classroomId)
-			.Include(cs => cs.Student) // Make sure this navigation exists
-			.ToListAsync();
-
-		var list = entities.Select(cs => new ClassroomStudentDto
+		var list = items.Select(cs => new ClassroomStudentDto
 		{
 			ClassroomStudentId = cs.ClassroomStudentId,
 			ClassroomId = cs.ClassroomId,
 			StudentId = cs.StudentId,
-			StudentName = cs.Student.UserName,
-			StudentEmail =  cs.Student.Email,
-			AvatarUrl =  cs.Student.AvatarUrl,
+			StudentName = cs.Student?.UserName,
+			StudentEmail = cs.Student?.Email,
+			AvatarUrl = cs.Student?.AvatarUrl,
 			IsApproved = cs.IsApproved,
 			IsActive = cs.IsActive,
 			EnrollmentStatus = cs.EnrollmentStatus,
-			JoinedAt = cs.JoinedAt
+			JoinedAt = cs.CreatedAt
 		}).ToList();
 
-		return Ok(list);
+		return Ok(new {
+			success = true,
+			message = "Get pending Classroom students successfully.",
+			data= new {
+				totalCount,
+				page, 
+				pageSize,
+				data = list
+			}
+		});	
 	}
 	
-	[HttpGet("pending/{classroomId:guid}")]
-	[Authorize(Roles = "Teacher")]
-	public async Task<IActionResult> GetPending(Guid classroomId)
+	[HttpPut("approve/{id}")]
+	[Authorize(Roles = "Teacher,Admin")]
+	public async Task<IActionResult> ApproveOrReject([FromBody] ClassroomStudentManageDto req)
+	{
+		if (req.ClassroomStudentId == Guid.Empty)
+			return BadRequest(new { success = false, message = "Invalid request." });
+
+		var cs = await _context.ClassroomStudents
+			.Include(x => x.Classroom)
+			.FirstOrDefaultAsync(x => x.ClassroomStudentId == req.ClassroomStudentId);
+
+		if (cs == null)
+			return NotFound(new { success = false, message = "Student not found." });
+
+		var userId = _userManager.GetUserId(User);
+		var isAdmin = User.IsInRole("Admin");
+
+		if (!isAdmin && cs.Classroom.TutorId != userId)
+			return Forbid();
+
+		var allowedStatuses = new[] { EnrollmentStatus.Approved, EnrollmentStatus.Rejected };
+		if (!allowedStatuses.Contains(req.EnrollmentStatus))
+			return BadRequest(new { success = false, message = "Invalid enrollment status." });
+
+		cs.EnrollmentStatus = req.EnrollmentStatus;
+		if (req.IsActive.HasValue) cs.IsActive = req.IsActive.Value;
+
+		await _context.SaveChangesAsync();
+
+		return Ok(new {
+			success = true,
+			message = "Student enrollment updated successfully"
+		});
+	}
+	
+	[HttpPut("kick/{id}")]
+	[Authorize(Roles = "Teacher, Admin")]
+	public async Task<IActionResult> Kick(Guid id)
+	{
+		var cs = await _context.ClassroomStudents
+			.Include(x => x.Classroom)
+			.FirstOrDefaultAsync(x => x.ClassroomStudentId == id);
+
+		if (cs == null)
+			return NotFound(new { success = false, message = "Student not found." });
+
+		var userId = _userManager.GetUserId(User);
+		var isAdmin = User.IsInRole("Admin");
+
+		if (!isAdmin && cs.Classroom.TutorId != userId)
+			return Forbid();
+
+		cs.IsActive = false;
+		cs.EnrollmentStatus = EnrollmentStatus.Removed;
+
+		await _context.SaveChangesAsync();
+
+		return Ok(new
+		{
+			success = true,
+			message = "Student kicked from classroom."
+		});
+	}
+	
+	[HttpGet("search")]
+	[Authorize(Roles = "Teacher, Admin")]
+	public async Task<IActionResult> SearchStudents([FromQuery] Guid classroomId, [FromQuery] string keyword, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
 	{
 		var userId = _userManager.GetUserId(User);
 		var classroom = await _context.Classrooms.FirstOrDefaultAsync(c => c.ClassroomId == classroomId);
+
 		if (classroom == null) return NotFound();
 
 		if (classroom.TutorId != userId && !User.IsInRole("Admin"))
 			return Forbid();
 
-		var entities = await _context.ClassroomStudents
+		var queryBase = _context.ClassroomStudents
 			.AsNoTracking()
 			.Where(cs => cs.ClassroomId == classroomId)
-			.Where(cs => cs.EnrollmentStatus == EnrollmentStatus.Pending )
-			.Include(cs => cs.Student) 
-			.ToListAsync();
+			.Include(cs => cs.Student);
+		
+		IQueryable<ClassroomStudent>? query = queryBase;
+		if (!string.IsNullOrWhiteSpace(keyword)) {
+			var lower = keyword.ToLower();
+			query = queryBase.Where(cs => cs.Student.UserName.ToLower().Contains(lower) || cs.Student.Email.ToLower().Contains(lower));
+		}
+		
+		var total = await query.CountAsync();
+		var list = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
-		var list = entities.Select(cs => new ClassroomStudentDto
-		{
+		var results = list.Select(cs => new ClassroomStudentDto {
 			ClassroomStudentId = cs.ClassroomStudentId,
 			ClassroomId = cs.ClassroomId,
 			StudentId = cs.StudentId,
 			StudentName = cs.Student.UserName,
-			StudentEmail =  cs.Student.Email,
-			AvatarUrl =  cs.Student.AvatarUrl,
+			StudentEmail = cs.Student.Email,
+			AvatarUrl = cs.Student.AvatarUrl,
 			IsApproved = cs.IsApproved,
 			IsActive = cs.IsActive,
 			EnrollmentStatus = cs.EnrollmentStatus,
-			JoinedAt = cs.JoinedAt
+			JoinedAt = cs.CreatedAt
 		}).ToList();
 
-		return Ok(list);
-	}
-	
-	[HttpPut("approve/{id}")]
-	[Authorize(Roles = "Teacher")]
-	public async Task<IActionResult> ApproveOrReject( [FromBody] ClassroomStudentManageDto req)
-	{
-		if (req == null || req.ClassroomStudentId == Guid.Empty) return BadRequest();
-		var cs = await _context.ClassroomStudents.Include(x => x.Classroom).FirstOrDefaultAsync(x => x.ClassroomStudentId == req.ClassroomStudentId);
-		if (cs == null) return NotFound();
-
-		var userId = _userManager.GetUserId(User);
-		if (cs.Classroom.TutorId != userId && !User.IsInRole("Admin"))
-			return Forbid();
-
-		cs.EnrollmentStatus = req.EnrollmentStatus;
-		if (req.IsActive.HasValue) cs.IsActive = req.IsActive.Value;
-		if (req.IsApproved.HasValue) { /* legacy boolean - keep for compatibility */ }
-
-		await _context.SaveChangesAsync();
-
-		return Ok(new { message = "Updated" });
+		return Ok(new {
+			success = true,
+			message = "Search students successfully.",
+			data= new {
+				total, page, pageSize, items = results
+			}
+		});
 	}
 
-	[HttpPut("kick/{id}")]
-	[Authorize(Roles = "Teacher")]
-	public async Task<IActionResult> Kick(Guid id)
-	{
-		var cs = await _context.ClassroomStudents.Include(x => x.Classroom).FirstOrDefaultAsync(x => x.ClassroomStudentId == id);
-		if (cs == null) return NotFound();
-
-		var userId = _userManager.GetUserId(User);
-		if (cs.Classroom.TutorId != userId && !User.IsInRole("Admin"))
-			return Forbid();
-
-		cs.IsActive = false;
-		cs.EnrollmentStatus = EnrollmentStatus.Removed;
-		await _context.SaveChangesAsync();
-
-		return Ok(new { message = "Student kicked from classroom." });
-	}
 	
 	//list endpoint 
 	//GET /api/ClassroomStudent/all for admin to moderation or debugging
-	//GET /api/ClassroomStudent/{id} to get student details
 	//PUT /api/ClassroomStudent/reactivate/{id}
-	//GET /api/ClassroomStudent/myPending for student to check status
 }

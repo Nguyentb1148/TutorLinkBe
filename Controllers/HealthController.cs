@@ -5,7 +5,6 @@ using TutorLinkBe.Services;
 
 namespace TutorLinkBe.Controllers;
 
-//Health endpoint that includes MongoDB connectivity status.
 [ApiController]
 [Route("api/status")]
 public class HealthController : ControllerBase
@@ -24,11 +23,11 @@ public class HealthController : ControllerBase
         {
             await _dbContext.Database.OpenConnectionAsync();
             await _dbContext.Database.CloseConnectionAsync();
-            return Ok(new { status = "Postgres OK" });
+            return Ok(new { status = "Supabase db connection opened." });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { status = "Postgres ERROR", error = ex.Message });
+            return StatusCode(500, new { status = "Supabase ERROR", error = ex.Message });
         }
     }
 

@@ -10,12 +10,12 @@ public class Classroom
     public DateTime? StartAt { get; set; }               
     public DateTime? EndAt { get; set; }                 
     public ClassroomStatus Status { get; set; }
-    public int MaxCapacity { get; set; }
+    public int MaxCapacity { get; set; }// default is 100
     public string? Note { get; set; }                  
     public DateTime CreatedAt { get; set; } 
     public DateTime? UpdatedAt { get; set; }
     public ApplicationUser Tutor { get; set; }
-    public ICollection<Course> Courses { get; set; }     // can contain 1 or more courses (curriculum templates)
+    public ICollection<Course> Courses { get; set; }  
     public ICollection<ClassroomStudent> ClassroomStudents { get; set; }
 }
 

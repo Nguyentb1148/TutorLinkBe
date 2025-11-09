@@ -24,40 +24,30 @@ public class TutorRequestController : ControllerBase
     {
         var email = User.FindFirstValue(ClaimTypes.Email);
         if (string.IsNullOrEmpty(email))
-        {
-            return Unauthorized("Email not found in token");
-        }
+            return Unauthorized( new {sucess= false, mesage="Email not found in token"});
+        
         // Find the user by email
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
         if (user == null)
-        {
-            _logger.LogError("User with email {Email} not found in database", email);
-            return BadRequest("User not found in database");
-        }
+            return BadRequest( new {sucess= false, mesage="User not found in database"});
 
         var userId = user.Id;
 
         var existing = await _context.TutorRequests
             .FirstOrDefaultAsync(tr => tr.UserId == userId && tr.Status == TutorRequestStatus.Pending);
         if (existing != null)
-        {
-            _logger.LogWarning("email {email} already has a pending request", email);
-            return BadRequest("You already have a pending request.");
-        }
+            return BadRequest( new {sucess= false, mesage="You already have a pending request."});
 
-        var request = new TutorRequest
-        {
+        var request = new TutorRequest {
             UserId = userId,
             Status = TutorRequestStatus.Pending,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
-
-        _logger.LogInformation("Creating TutorRequest with User email: {email}", user.Email);
-
+        
         _context.TutorRequests.Add(request);
         await _context.SaveChangesAsync();
 
-        return Ok("Tutor request submitted successfully!");
+        return Ok( new {sucess= true, mesage="Tutor request submitted successfully!"});
     }
 }

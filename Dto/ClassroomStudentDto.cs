@@ -18,7 +18,7 @@ namespace TutorLinkBe.Dto
         public DateTime JoinedAt { get; set; }
     }
 
-    public class ClassroomStudentCreateDto
+    public class ClassroomStudentRequestDto
     {
         [Required(ErrorMessage = "ClassroomId is required.")]
         public Guid ClassroomId { get; set; }

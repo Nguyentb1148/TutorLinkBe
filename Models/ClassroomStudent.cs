@@ -8,7 +8,8 @@ namespace TutorLinkBe.Models
         public Guid ClassroomId { get; set; }
         public string StudentId { get; set; }
         public bool IsApproved { get; set; }
-        public DateTime JoinedAt { get; set; }
+        public DateTime CreatedAt { get; set; }// CreatedAt
+        public DateTime UpdatedAt { get; set; }
         // Track leave or kick events (simple for v1)
         public bool IsActive { get; set; } = true;
         public EnrollmentStatus EnrollmentStatus { get; set; } 
