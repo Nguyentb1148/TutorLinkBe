@@ -8,6 +8,7 @@ using TutorLinkBe.Models;
 using TutorLinkBe.Dto;
 using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using TutorLinkBe.Services;
 
 namespace TutorLinkBe.Controllers;
 
@@ -19,14 +20,16 @@ public class ClassroomController : ControllerBase
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IMapper _mapper;
+    private readonly IEmailService _emailService;
 
-    public ClassroomController(AppDbContext context, UserManager<ApplicationUser> userManager, IMapper mapper)
+    public ClassroomController(AppDbContext context, UserManager<ApplicationUser> userManager, IMapper mapper, IEmailService emailService)
     {
         _context = context;
         _userManager = userManager;
         _mapper = mapper;
+        _emailService = emailService;
     }
-
+    
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] ClassroomCreateDto dto)
     {
@@ -145,9 +148,6 @@ public class ClassroomController : ControllerBase
 
         return Ok(new PagedResult<ClassroomDto> { Total = total, Page = page, PageSize = pageSize, Items = items  });
     }
-
-
-
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
@@ -201,6 +201,64 @@ public class ClassroomController : ControllerBase
         public int Page { get; set; }
         public int PageSize { get; set; }
         public List<T> Items { get; set; }
+    }
+
+    [HttpPost("invite")]
+    public async Task<IActionResult> InviteByEmail([FromBody] ClassroomInviteRequestDto request)
+    {
+        if (request == null || request.ClassroomId == Guid.Empty || request.Emails == null || !request.Emails.Any())
+            return BadRequest(new { message = "ClassroomId and at least one email are required." });
+
+        var classroom = await _context.Classrooms.FirstOrDefaultAsync(c => c.ClassroomId == request.ClassroomId);
+        if (classroom == null) return NotFound(new { message = "Classroom not found." });
+
+        var userId = _userManager.GetUserId(User);
+        if (classroom.TutorId != userId && !User.IsInRole("Admin"))
+            return Forbid();
+
+        var baseUrl = "http://localhost:3000";
+        var joinUrl = $"{baseUrl}/join?classroomId={classroom.ClassroomId}&code={classroom.Code}";
+
+        var subject = $"You're invited to join {classroom.Name}";
+        var success = new List<string>();
+        var failed = new List<string>();
+
+        foreach (var email in request.Emails)
+        {
+            try
+            {
+                var htmlContent = $@"
+                    <h3>Hi there 👋</h3>
+                    <p>You’ve been invited to join the classroom <strong>{classroom.Name}</strong>.</p>
+                    <p>Click the button below to join:</p>
+                    <p><a href='{joinUrl}' 
+                          style='display:inline-block;padding:10px 20px;background-color:#007bff;color:#fff;text-decoration:none;border-radius:5px;'>
+                          Join Classroom
+                       </a></p>
+                    <p>Or use this code: <strong>{classroom.Code}</strong></p>
+                    <hr/>
+                    <p>If you didn’t expect this invite, please ignore this email.</p>";
+
+                await _emailService.SendEmailAsync(email, subject, htmlContent);
+                success.Add(email);
+            }
+            catch (Exception ex)
+            {
+                failed.Add(email);
+                Console.WriteLine($"Error sending email to {email}: {ex.Message}");
+            }
+        }
+
+        return Ok(new
+        {
+            classroomId = classroom.ClassroomId,
+            total = request.Emails.Count,
+            successCount = success.Count,
+            failedCount = failed.Count,
+            joinUrl,
+            success,
+            failed
+        });
     }
 
 }

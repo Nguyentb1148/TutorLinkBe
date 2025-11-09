@@ -9,11 +9,9 @@ namespace TutorLinkBe.Dto
         public Guid ClassroomStudentId { get; set; }
         public Guid ClassroomId { get; set; }
         public string StudentId { get; set; }
-
         public string? StudentName { get; set; }
         public string? StudentEmail { get; set; }
         public string? AvatarUrl { get; set; }
-
         public bool IsApproved { get; set; }
         public bool IsActive { get; set; }
         public EnrollmentStatus EnrollmentStatus { get; set; }
@@ -24,6 +22,8 @@ namespace TutorLinkBe.Dto
     {
         [Required(ErrorMessage = "ClassroomId is required.")]
         public Guid ClassroomId { get; set; }
+        [Required(ErrorMessage = "code is required.")]
+        public string Code { get; set; }
     }
 
     public class ClassroomStudentManageDto

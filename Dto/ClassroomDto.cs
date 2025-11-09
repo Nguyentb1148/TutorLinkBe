@@ -39,4 +39,10 @@ public class ClassroomDto : ClassroomUpdateDto
     public DateTime CreatedAt { get; set; } 
     public DateTime? UpdatedAt { get; set; }        
 }
-
+public class ClassroomInviteRequestDto
+{
+    [Required(ErrorMessage = "ClassroomId is required.")]
+    public Guid ClassroomId { get; set; }
+    [Required(ErrorMessage = "email is required.")]
+    public List<string> Emails { get; set; }
+}
