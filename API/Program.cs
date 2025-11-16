@@ -56,7 +56,9 @@ builder.Services.AddCors(options =>
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddScoped<IEmailService, EmailServices>();
 builder.Services.AddScoped<IUserRepository, UserRepository>(); 
+builder.Services.AddScoped<IAccountRepository, AccountRepository>();
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
 #if DEBUG
     .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true)
@@ -142,4 +144,3 @@ app.UseAuthorization();
 // app.UseHttpsRedirection();
 app.MapControllers();
 app.Run();
-

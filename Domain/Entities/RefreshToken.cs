@@ -17,5 +17,12 @@ namespace TutorLinkBe.Domain.Entities
         public bool IsRevoked { get; set; }
         public string? ReplacedByToken { get; set; }
         public string? JwtId { get; set; }
+        
+        // for multiple devices
+        /*
+            public string DeviceName { get; set; } // e.g., "Web", "Mobile"
+            public string IPAddress { get; set; }
+            public DateTime LastUsed { get; set; } 
+         */
     }
 }
