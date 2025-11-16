@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Options;
-using TutorLinkBe.Domain.Models;
+using TutorLinkBe.Domain.Entities;
 using System.Net;
 using System.Net.Mail;
 namespace TutorLinkBe.Application.Services

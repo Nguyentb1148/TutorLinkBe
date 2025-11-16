@@ -1,6 +1,6 @@
 using AutoMapper;
-using TutorLinkBe.Domain.Models;
-using TutorLinkBe.Application.Dto;
+using TutorLinkBe.Domain.Entities;
+using TutorLinkBe.Application.DTOs;
 namespace TutorLinkBe.Infrastructure.Helper;
 
 public class MappingProfile : Profile

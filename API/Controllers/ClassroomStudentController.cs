@@ -2,10 +2,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using TutorLinkBe.Domain.Context;
-using TutorLinkBe.Domain.Models;
+using TutorLinkBe.Infrastructure.Persistence;
+using TutorLinkBe.Domain.Entities;
 using AutoMapper;
-using TutorLinkBe.Application.Dto;
+using TutorLinkBe.Application.DTOs;
 
 namespace TutorLinkBe.API.Controllers;
 

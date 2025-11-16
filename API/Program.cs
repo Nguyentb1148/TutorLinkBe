@@ -2,18 +2,19 @@ using System.Security.Claims;
 using System.Text;
 using TutorLinkBe.Infrastructure.Config;
 using TutorLinkBe.Application.Services;
-using TutorLinkBe.Domain.Context;
-using TutorLinkBe.Domain.Models;
+using TutorLinkBe.Infrastructure.Persistence;
+using TutorLinkBe.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using TutorLinkBe.Application.Repository;
+using TutorLinkBe.Application.Interfaces;
+using TutorLinkBe.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using TutorLinkBe.Infrastructure.Helper;
-using TutorLinkBe.API.MiddleWare;
+using TutorLinkBe.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,7 +55,7 @@ builder.Services.AddCors(options =>
 });
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddScoped<IEmailService, EmailServices>();
-builder.Services.AddScoped<UserRepository>(); 
+builder.Services.AddScoped<IUserRepository, UserRepository>(); 
 builder.Services.AddScoped<TokenService>();
 builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
 #if DEBUG

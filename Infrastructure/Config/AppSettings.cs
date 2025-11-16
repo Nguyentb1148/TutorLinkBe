@@ -10,7 +10,7 @@ public class AppSettings
 // MongoDB configuration settings
 public sealed class MongoDbSettings
 {
-    public string ConnectionString { get; init; }=string.Empty;
+    public string ConnectionStrings { get; init; }=string.Empty;
 }
 // JWT configuration settings
 public sealed class JwtSettings

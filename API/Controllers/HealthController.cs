@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using TutorLinkBe.Domain.Context;
+using TutorLinkBe.Infrastructure.Persistence;
 using TutorLinkBe.Application.Services;
 
 namespace TutorLinkBe.API.Controllers;

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using TutorLinkBe.Infrastructure.Config;
-using TutorLinkBe.Domain.Models;
+using TutorLinkBe.Domain.Entities;
 
 namespace TutorLinkBe.Application.Services;
 
@@ -11,15 +11,16 @@ public sealed class MongoDbService
     private readonly ILogger<MongoDbService> _logger;
     private readonly MongoClient _client;
     private readonly IMongoDatabase? _database;
+    private readonly IConfiguration _configuration;
     
     // Initializes a new instance of the <see cref="MongoDbService"/> class.
-    public MongoDbService(IOptions<AppSettings> options, ILogger<MongoDbService> logger)
+    public MongoDbService( ILogger<MongoDbService> logger,IConfiguration configuration )
     {
         _logger = logger;
 
-        var settings = options.Value;
+        var settings = configuration.GetSection( "ConnectionStrings" );
         
-        var connectionString = settings.MongoDb?.ConnectionString;
+        var connectionString = settings["MongoDbConnection"];
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             _logger.LogWarning("MongoDb.ConnectionString is not configured in AppSettings.");
@@ -38,7 +39,6 @@ public sealed class MongoDbService
         {
             _logger.LogError(ex, "Failed to parse MongoDB connection string for database selection.");
         }
-        
     }
     
     //check the MongoDb connection by attempting to list database

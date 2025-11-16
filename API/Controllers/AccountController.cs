@@ -2,11 +2,11 @@ using System.IdentityModel.Tokens.Jwt;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using TutorLinkBe.Domain.Context;
-using TutorLinkBe.Domain.Models;
-using TutorLinkBe.Application.Repository;
+using TutorLinkBe.Infrastructure.Persistence;
+using TutorLinkBe.Domain.Entities;
+using TutorLinkBe.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using TutorLinkBe.Application.Dto;
+using TutorLinkBe.Application.DTOs;
 using TutorLinkBe.Application.Services;
 
 namespace TutorLinkBe.API.Controllers
@@ -19,7 +19,7 @@ namespace TutorLinkBe.API.Controllers
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IEmailService _emailService;
         private readonly ILogger<AccountController> _logger; 
-        private readonly UserRepository _userRepository;
+        private readonly IUserRepository _userRepository;
         private readonly TokenService _tokenService; 
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
@@ -29,7 +29,7 @@ namespace TutorLinkBe.API.Controllers
             SignInManager<ApplicationUser> signInManager,
             IEmailService emailService,
             ILogger<AccountController> logger,
-            UserRepository userRepository,
+            IUserRepository userRepository,
             TokenService tokenService,
             AppDbContext context,
             IConfiguration configuration)

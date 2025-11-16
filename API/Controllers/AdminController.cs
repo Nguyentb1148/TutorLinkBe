@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using TutorLinkBe.Domain.Context;
-using TutorLinkBe.Domain.Models;
-using TutorLinkBe.Application.Repository;
+using TutorLinkBe.Infrastructure.Persistence;
+using TutorLinkBe.Domain.Entities;
+using TutorLinkBe.Application.Interfaces;
 
 namespace TutorLinkBe.API.Controllers;
 
@@ -19,9 +19,9 @@ public class AdminController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly RoleManager<IdentityRole> _roleManager;
-    private readonly UserRepository _userRepository;
+    private readonly IUserRepository _userRepository;
 
-    public AdminController(ILogger<AdminController> logger, AppDbContext context, UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, RoleManager<IdentityRole> roleManager, UserRepository userRepository)
+    public AdminController(ILogger<AdminController> logger, AppDbContext context, UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, RoleManager<IdentityRole> roleManager, IUserRepository userRepository)
     {
         _logger = logger;
         _context = context;

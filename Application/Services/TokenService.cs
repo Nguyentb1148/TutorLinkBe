@@ -4,8 +4,8 @@ using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Security.Cryptography;
-using TutorLinkBe.Domain.Context;
-using TutorLinkBe.Domain.Models;
+using TutorLinkBe.Infrastructure.Persistence;
+using TutorLinkBe.Domain.Entities;
 
 namespace TutorLinkBe.Application.Services
 {

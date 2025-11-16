@@ -4,7 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
-namespace TutorLinkBe.API.MiddleWare;
+namespace TutorLinkBe.API.Middleware;
 
 public class JwtMiddleware
 {

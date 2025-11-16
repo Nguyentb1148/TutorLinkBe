@@ -1,8 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TutorLinkBe.Domain.Context;
-using TutorLinkBe.Domain.Models;
+using TutorLinkBe.Infrastructure.Persistence;
+using TutorLinkBe.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace TutorLinkBe.API.Controllers;
